@@ -24,7 +24,7 @@ pip install deid
 For the development version, install from Github:
 
 ```bash
-pip install git+git://github.com/pydicom/deid
+pip install git+git://github.com/tmcacademy/deid
 ```
 
 ### Docker

@@ -38,6 +38,10 @@ def parse_value(dicom, value, item=None, field=None):
     if item is None:
         item = dict()
 
+    # If value is passed as None
+    if value is None:
+        value = ''
+
     # Does the user want a custom value?
     if re.search("[:]", value):
         value_type, value_option = value.split(":", 1)

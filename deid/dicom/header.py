@@ -121,7 +121,7 @@ def replace_identifiers(
     config=None,
     strip_sequences=False,
     remove_private=False,
-    progress_value=None,
+    progress_callback=None,
 ):
 
     """replace identifiers using pydicom, can be slow when writing
@@ -161,7 +161,7 @@ def replace_identifiers(
         else:
             updated_files.append(parser.dicom)
 
-        if progress_value:
-            progress_value.value += 1
+        if progress_callback:
+            progress_callback()
 
     return updated_files

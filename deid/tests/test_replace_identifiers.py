@@ -35,6 +35,7 @@ from deid.utils import get_installdir
 from deid.data import get_dataset
 from deid.dicom.parser import DicomParser
 from deid.dicom import get_identifiers, replace_identifiers
+from deid.tests.common import create_recipe, get_file
 from pydicom import read_file
 from pydicom.sequence import Sequence
 
@@ -410,6 +411,7 @@ class TestDicom(unittest.TestCase):
             save=False,
             remove_private=False,
             strip_sequences=False,
+            disable_skip=True,
         )
         self.assertEqual(1, len(result))
         self.assertEqual(2, len(result[0]))
@@ -648,6 +650,7 @@ class TestDicom(unittest.TestCase):
             save=False,
             remove_private=False,
             strip_sequences=False,
+            disable_skip=True,
         )
         self.assertEqual(1, len(result))
         self.assertEqual(139, len(result[0]))
@@ -694,6 +697,190 @@ class TestDicom(unittest.TestCase):
             check3 = parser.dicom["RequestingPhysician"].value
         with self.assertRaises(KeyError):
             check4 = parser.dicom["00331019"].value
+
+    def test_remove_all_keep_field_compounding_should_keep(self):
+        """
+        %header
+        REMOVE ALL
+        KEEP StudyDate
+        ADD PatientIdentityRemoved Yes
+        """
+        dicom_file = get_file(self.dataset)
+
+        actions = [
+            {"action": "REMOVE", "field": "ALL"},
+            {"action": "KEEP", "field": "StudyDate"},
+            {"action": "ADD", "field": "PatientIdentityRemoved", "value": "Yes"},
+        ]
+        recipe = create_recipe(actions)
+
+        parser = DicomParser(dicom_file, recipe=recipe)
+        parser.parse()
+
+        self.assertEqual("Yes", parser.dicom["PatientIdentityRemoved"].value)
+        self.assertIsNotNone(parser.dicom["PixelData"])
+        self.assertIsNotNone(parser.dicom["StudyDate"])
+        self.assertEqual("20230101", parser.dicom["StudyDate"].value)
+
+    def test_remove_except_field_keep_other_field_compounding_should_keep(self):
+        """
+        %header
+        REMOVE ALL
+        ADD PatientIdentityRemoved Yes
+        """
+        dicom_file = get_file(self.dataset)
+
+        actions = [
+            {"action": "REMOVE", "field": "except:Manufacturer"},
+            {"action": "KEEP", "field": "StudyDate"},
+            {"action": "ADD", "field": "PatientIdentityRemoved", "value": "Yes"},
+        ]
+        recipe = create_recipe(actions)
+
+        parser = DicomParser(dicom_file, recipe=recipe)
+        parser.parse()
+
+        self.assertEqual("Yes", parser.dicom["PatientIdentityRemoved"].value)
+        self.assertIsNotNone(parser.dicom["PixelData"])
+        self.assertIsNotNone(parser.dicom["Manufacturer"])
+        self.assertIsNotNone(parser.dicom["ManufacturerModelName"])
+        self.assertIsNotNone(parser.dicom["StudyDate"])
+
+    def test_remove_all_add_field_compounding_should_add(self):
+        """
+        %header
+        REMOVE ALL
+        ADD PatientIdentityRemoved Yes
+        ADD StudyDate 19700101
+        """
+        dicom_file = get_file(self.dataset)
+
+        actions = [
+            {"action": "REMOVE", "field": "ALL"},
+            {"action": "ADD", "field": "PatientIdentityRemoved", "value": "Yes"},
+            {"action": "ADD", "field": "StudyDate", "value": "19700101"},
+        ]
+        recipe = create_recipe(actions)
+
+        parser = DicomParser(dicom_file, recipe=recipe)
+        parser.parse()
+
+        self.assertEqual("Yes", parser.dicom["PatientIdentityRemoved"].value)
+        self.assertIsNotNone(parser.dicom["PixelData"])
+        self.assertEqual("19700101", parser.dicom["StudyDate"].value)
+
+    def test_remove_all_blank_field_compounding_should_remove(self):
+        """
+        %header
+        REMOVE ALL
+        ADD PatientIdentityRemoved Yes
+        BLANK StudyDate
+        """
+        dicom_file = get_file(self.dataset)
+
+        actions = [
+            {"action": "REMOVE", "field": "ALL"},
+            {"action": "ADD", "field": "PatientIdentityRemoved", "value": "Yes"},
+            {"action": "BLANK", "field": "StudyDate"},
+        ]
+        recipe = create_recipe(actions)
+
+        parser = DicomParser(dicom_file, recipe=recipe)
+        parser.parse()
+
+        self.assertEqual("Yes", parser.dicom["PatientIdentityRemoved"].value)
+        self.assertIsNotNone(parser.dicom["PixelData"])
+        with self.assertRaises(KeyError):
+            check3 = parser.dicom["StudyDate"].value
+
+    def test_blank_field_keep_field_compounding_should_keep(self):
+        """
+        %header
+        ADD PatientIdentityRemoved Yes
+        BLANK StudyDate
+        KEEP StudyDate
+        """
+        dicom_file = get_file(self.dataset)
+
+        actions = [
+            {"action": "ADD", "field": "PatientIdentityRemoved", "value": "Yes"},
+            {"action": "BLANK", "field": "StudyDate"},
+            {"action": "KEEP", "field": "StudyDate"},
+        ]
+        recipe = create_recipe(actions)
+
+        parser = DicomParser(dicom_file, recipe=recipe)
+        parser.parse()
+
+        self.assertEqual("Yes", parser.dicom["PatientIdentityRemoved"].value)
+        self.assertIsNotNone(parser.dicom["PixelData"])
+        self.assertEqual("20230101", parser.dicom["StudyDate"].value)
+
+    def test_remove_keep_add_field_compounding_should_add(self):
+        """
+        %header
+        REMOVE ALL
+        KEEP StudyDate
+        ADD StudyDate 19700101
+        ADD PatientIdentityRemoved Yes
+        """
+        dicom_file = get_file(self.dataset)
+
+        actions = [
+            {"action": "REMOVE", "field": "ALL"},
+            {"action": "KEEP", "field": "StudyDate"},
+            {"action": "ADD", "field": "StudyDate", "value": "19700101"},
+            {"action": "ADD", "field": "PatientIdentityRemoved", "value": "Yes"},
+        ]
+        recipe = create_recipe(actions)
+
+        parser = DicomParser(dicom_file, recipe=recipe)
+        parser.parse()
+
+        self.assertEqual("Yes", parser.dicom["PatientIdentityRemoved"].value)
+        self.assertIsNotNone(parser.dicom["PixelData"])
+        self.assertEqual("19700101", parser.dicom["StudyDate"].value)
+
+    def test_remove_field_keep_same_field_compounding_should_keep(self):
+        """
+        %header
+        REMOVE StudyDate
+        KEEP StudyDate
+        ADD PatientIdentityRemoved Yes
+        """
+        dicom_file = get_file(self.dataset)
+
+        actions = [
+            {"action": "REMOVE", "field": "StudyDate"},
+            {"action": "KEEP", "field": "StudyDate"},
+            {"action": "ADD", "field": "PatientIdentityRemoved", "value": "Yes"},
+        ]
+        recipe = create_recipe(actions)
+
+        parser = DicomParser(dicom_file, recipe=recipe)
+        parser.parse()
+
+        self.assertEqual("Yes", parser.dicom["PatientIdentityRemoved"].value)
+        self.assertIsNotNone(parser.dicom["PixelData"])
+        self.assertEqual("20230101", parser.dicom["StudyDate"].value)
+
+    def test_remove_except_is_acting_as_substring(self):
+        """
+        %header
+        REMOVE except:Manufacturer
+        """
+        dicom_file = get_file(self.dataset)
+
+        actions = [
+            {"action": "REMOVE", "field": "except:Manufacturer"},
+        ]
+        recipe = create_recipe(actions)
+
+        parser = DicomParser(dicom_file, recipe=recipe)
+        parser.parse()
+
+        self.assertIsNotNone(parser.dicom["Manufacturer"])
+        self.assertIsNotNone(parser.dicom["ManufacturerModelName"])
 
     def test_strip_sequences(self):
         """
@@ -753,7 +940,10 @@ class TestDicom(unittest.TestCase):
             items[item]["new_val"] = "modified"
 
         result = replace_identifiers(
-            dicom_files=dicom_file, ids=items, deid=recipe, save=False,
+            dicom_files=dicom_file,
+            ids=items,
+            deid=recipe,
+            save=False,
         )
         self.assertEqual(1, len(result))
         self.assertEqual(result[0].StudyInstanceUID, "modified")
@@ -983,7 +1173,6 @@ class TestDicom(unittest.TestCase):
         self.assertEqual("20230102", result[0]["StudyDate"].value)
         self.assertEqual("20230102", result[0]["SeriesDate"].value)
         self.assertEqual("20230102", result[0]["AcquisitionDate"].value)
-        self.assertEqual("20230102", result[0]["ContentDate"].value)
         self.assertEqual("20230102", result[0]["00291019"].value)
         self.assertEqual("20230102011721.621000", result[0]["00291020"].value)
         self.assertEqual(20230102, result[0]["00291021"].value)
@@ -1018,35 +1207,37 @@ class TestDicom(unittest.TestCase):
         self.assertEqual(len(original_dataset), len(result[0]))
         self.assertEqual("20230102", result[0]["00291019"].value)
 
+    def test_jitter_blank_date(self):
+        """
+        Testing to ensure jittering a date field which contains a blank value does not cause an unhandled exception
+
+        %header
+        JITTER ContentDate 1
+        """
+        import pydicom
+
+        print("Test jitter date field containing space")
+        dicom_file = get_file(self.dataset)
+        original_dataset = pydicom.dcmread(dicom_file)
+
+        actions = [{"action": "JITTER", "field": "ContentDate", "value": "1"}]
+        recipe = create_recipe(actions)
+
+        # Perform action
+        result = replace_identifiers(
+            dicom_files=dicom_file,
+            deid=recipe,
+            save=False,
+            remove_private=False,
+            strip_sequences=False,
+        )
+
+        self.assertEqual(1, len(result))
+        self.assertEqual(len(original_dataset), len(result[0]))
+        self.assertEqual("", result[0]["ContentDate"].value)
+
 
 # MORE TESTS NEED TO BE WRITTEN TO TEST SEQUENCES
-
-
-def create_recipe(actions, fields=None, values=None):
-    """helper method to create a recipe file"""
-    from deid.config import DeidRecipe
-
-    recipe = DeidRecipe()
-
-    # .clear() only supported Python 3.3 and after
-    del recipe.deid["header"][:]
-    recipe.deid["header"] = actions
-
-    if fields is not None:
-        recipe.deid["fields"] = fields
-
-    if values is not None:
-        recipe.deid["values"] = values
-
-    return recipe
-
-
-def get_file(dataset):
-    """helper to get a dicom file"""
-    from deid.dicom import get_files
-
-    dicom_files = get_files(dataset)
-    return next(dicom_files)
 
 
 if __name__ == "__main__":

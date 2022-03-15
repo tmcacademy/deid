@@ -14,7 +14,12 @@ and **Merged pull requests**. Critical items to know are:
 Referenced versions in headers are tagged on Github, in parentheses are for pypi.
 
 ## [vxx](https://github.com/pydicom/deid/tree/master) (master)
- - updated pydicom dependency from 1.3.0 to 2.1.1 [#171] (https://github.com/pydicom/deid/issues/171) (0.2.25)
+ - `ADD/KEEP` actions have now higher priority than `KEEP`, allowing to whitelist fields from `REMOVE ALL` [#197](https://github.com/pydicom/deid/issues/197)
+ - updated pydicom dependency from 2.1.1 to 2.2.2 [#194](https://github.com/pydicom/deid/issues/194)
+ - various LGTM alert fixes [#186](https://github.com/pydicom/deid/pull/186)
+ - bug fix for exception when attempting to jitter DA/DT which cannot be jittered (space) [#189] (https://github.com/pydicom/deid/issues/189) (0.2.27)
+ - adding support to manipulate file meta [#183](https://github.com/pydicom/deid/issues/183) (0.2.26)
+ - updated pydicom dependency from 1.3.0 to 2.1.1 [#171](https://github.com/pydicom/deid/issues/171) (0.2.25)
  - bug fix for multivalued fields in %values lists [#174](https://github.com/pydicom/deid/issues/174)
  - allowing other VR types for jitter [#175](https://github.com/pydicom/deid/issues/175)
  - ensuring that an add/replace of an existing value is also updated in fields [#173](https://github.com/pydicom/deid/issues/173)

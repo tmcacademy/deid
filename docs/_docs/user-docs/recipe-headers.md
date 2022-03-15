@@ -36,7 +36,7 @@ The application does the following, by default, taking a conservative de-identif
 
 However, you might want to do either of the following:
 
- - have a specific action for some set of headers, where actions include `BLANK`, `REPLACE`, `JITTER`, `REMOVE`, and `KEEP`
+ - have a specific action for some set of headers, where actions include `BLANK`, `REPLACE`, `JITTER`, `REMOVE`, `ADD` and `KEEP`
  - perform some custom functions between `get`, `update`, and `put`.
 
 We will show you a working example of the above as you continue this walkthrough. For now, let's review configuration settings. 
@@ -74,6 +74,7 @@ REMOVE ReferringPhysicianName
 
 In the above example, we tell the application exactly how to deal with header fields for dicom. 
 We do that by way of sections (the lines that begin with `%` like `%header` and actions (eg, `KEEP`). 
+The fields above can include those that are specified in the [file-meta](http://dicom.nema.org/dicom/2013/output/chtml/part10/chapter_7.html) section of the dicom, which are a unique namespace.
 Each of these variables will be discussed in detail, next.
 
 <a id="format">
@@ -106,6 +107,34 @@ ADD PatientIdentityRemoved Yes
 #<ACTION> <FIELD>
 KEEP PixelData
 ```
+
+<a id="protected_fields">
+#### Protected Fields
+
+To protect you from replacing fields that might have un-intended consequences for the integrity of the dicom,
+by default we do not let you change a set of protected fields.
+
+- `PixelData`
+- `RedPaletteColorLookupTableData`
+- `GreenPaletteColorLookupTableData`
+- `BluePaletteColorLookupTableData`
+- `VOILUTSequence`
+
+These fields are found within the header, and since we load the file metadata as well, 
+we also protect the following:
+
+- `FileMetaInformationGroupLength`
+- `FileMetaInformationVersion`
+- `TransferSyntaxUID`
+- `ImplementationClassUID`
+
+If you are using `replace_identifiers`, `get_identifiers`, or the `DicomParser`,
+you can provide the boolean `disable_skip=True` to not skip any protected fields.
+If you want to modify the set of skipped fields, then you can create your own
+[config.json](https://github.com/pydicom/deid/blob/master/deid/dicom/config.json) and provide
+the path as the `config` argument to either of these functions/classes.
+
+
 <a id="dynamic-values">
 #### Dynamic Values
 
@@ -192,16 +221,16 @@ be taken on a header field/value:
  - BLANK: If you want to blank a field instead of remove it, use this option. This is the default action.
  - KEEP: implies that the value should not be replaced, removed, or blanked.
  - REPLACE: implies that the value should be replaced by a string, or a variable in the format `var:FieldName`.
- - REMOVE: completely remove the field from the dataset.
+ - REMOVE: completely remove the field from the dataset (if not protected by `KEEP` or is in default skip list).
 
 For the above, given that there are conflicting commands, the more conservative is given preference. For example:
 
 ```
-REMOVE > BLANK > REPLACE > JITTER/KEEP/ADD
+KEEP > ADD > REMOVE > BLANK > REPLACE > JITTER
 ``` 
 
-For example, if I add or keep a header, but then also specify to blank or remove it, 
-it will be blanked or removed. If I specify to blank a header and remove it, it will be removed. 
+For example, if I add or keep a header, and then also specify to blank or remove it, 
+it will be kept. If I specify to blank a header and remove it, it will be removed. 
 If I specify to replace a header and blank it, it will be blanked. Most of the time, 
 you won't need to specify remove, because it is the default. If we were to come up with 
 a pretend config file to represent the default, it would look like this:
@@ -253,7 +282,7 @@ JITTER endswith:Date var:jitter
 
 and this is the idea of an `expander`. And expander is an optional filter 
 applied to a header field (the middle value) to select some subset of header 
-values. Currently, we support `startswith`, `endswith`, `contains`, `allexcept`,
+values. Currently, we support `startswith`, `endswith`, `contains`, `except`,
 and `allfields`.
  
 The following examples show what fields are selected based on each filter. For
@@ -307,7 +336,7 @@ ADD ALL func:remove_identifiers
 
 **except**
 
-Akin to all fields, except provide a list of fields that you want to disclude from
+Akin to all fields, except provide a pattern that you want to exclude from
 a global selector. Here are some examples to include all fields except StudyDate 
 or StudyTime.
 
@@ -315,6 +344,13 @@ or StudyTime.
 BLANK except:StudyDate|StudyTime
 BLANK except:StudyTime
 ```
+
+_except_ is checking field names against given pattern, so if you for example set
+```
+REMOVE except:Manufacturer
+```
+
+following fields will be preserved: `Manufacturer` **and** `ManufacturerModelName`
 
 If you are familiar with regular expressions, you'll notice the "|" which 
 means "or" in the regular expression. You are free to write whatever regular

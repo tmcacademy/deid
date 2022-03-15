@@ -38,10 +38,6 @@ def parse_value(dicom, value, item=None, field=None):
     if item is None:
         item = dict()
 
-    # If value is passed as None
-    if value is None:
-        value = ''
-
     # Does the user want a custom value?
     if re.search("[:]", value):
         value_type, value_option = value.split(":", 1)
@@ -88,7 +84,7 @@ def get_func(function_name):
 
 def get_timestamp(item_date, item_time=None, jitter_days=None, format=None):
     """get_timestamp will return (default) a UTC timestamp
-    with some date and (optionall) time. A different format can be
+    with some date and (optional) time. A different format can be
     provided to change default behavior. eg: "%Y%m%d"
     """
     if format is None:
@@ -102,7 +98,7 @@ def get_timestamp(item_date, item_time=None, jitter_days=None, format=None):
 
     try:
         timestamp = dateutil.parser.parse("%s%s" % (item_date, item_time))
-    except:
+    except (dateutil.parser.ParserError, OverflowError):
         timestamp = datetime.strptime("%s%s" % (item_date, item_time), format)
 
     if jitter_days is not None:

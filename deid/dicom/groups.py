@@ -26,11 +26,8 @@ SOFTWARE.
 
 
 from deid.logger import bot
-from .tags import remove_sequences
 from .fields import get_fields, expand_field_expression
 from pydicom.multival import MultiValue
-
-import os
 
 
 def extract_values_list(dicom, actions, fields=None):
@@ -75,7 +72,7 @@ def extract_values_list(dicom, actions, fields=None):
                     param_name = param_name.strip()
                     param_val = param_val.strip()
 
-                    # Set a custom parameter legnth
+                    # Set a custom parameter length
                     if param_name == "minlength":
                         minlength = int(param_val)
                         bot.debug("Minimum length set to %s" % minlength)

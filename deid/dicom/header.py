@@ -26,16 +26,10 @@ SOFTWARE.
 
 
 from deid.logger import bot
-from deid.utils import read_json
-
-from deid.config import DeidRecipe
 
 from pydicom import read_file
 
 from deid.dicom.utils import save_dicom
-from deid.dicom.tags import remove_sequences, get_private
-from deid.dicom.groups import extract_values_list, extract_fields_list
-from deid.dicom.fields import get_fields
 from deid.dicom.parser import DicomParser
 
 import os
@@ -44,7 +38,12 @@ here = os.path.dirname(os.path.abspath(__file__))
 
 
 def get_identifiers(
-    dicom_files, force=True, config=None, strip_sequences=False, remove_private=False
+    dicom_files,
+    force=True,
+    config=None,
+    strip_sequences=False,
+    remove_private=False,
+    disable_skip=False,
 ):
     """extract all identifiers from a dicom image.
     This function returns a lookup by file name, where each value indexed
@@ -57,15 +56,8 @@ def get_identifiers(
     config: if None, uses default in provided module folder
     strip_sequences: if True, remove all sequences
     remove_private: remove private tags
-
+    disable_skip: do not skip over protected fields
     """
-    if config is None:
-        config = "%s/config.json" % here
-
-    if not os.path.exists(config):
-        bot.error("Cannot find config %s, exiting" % (config))
-    config = read_json(config, ordered_dict=True)["get"]
-
     if not isinstance(dicom_files, list):
         dicom_files = [dicom_files]
 
@@ -74,7 +66,7 @@ def get_identifiers(
 
     # Parse each dicom file
     for dicom_file in dicom_files:
-        parser = DicomParser(dicom_file, force=force)
+        parser = DicomParser(dicom_file, force=force, config=config, disable_skip=False)
         lookup[parser.dicom_file] = parser.get_fields()
 
     return lookup
@@ -121,6 +113,7 @@ def replace_identifiers(
     config=None,
     strip_sequences=False,
     remove_private=False,
+    disable_skip=False,
     progress_callback=None,
 ):
 
@@ -141,7 +134,13 @@ def replace_identifiers(
     # Parse through dicom files, update headers, and save
     updated_files = []
     for dicom_file in dicom_files:
-        parser = DicomParser(dicom_file, force=force, config=config, recipe=deid)
+        parser = DicomParser(
+            dicom_file,
+            force=force,
+            config=config,
+            recipe=deid,
+            disable_skip=disable_skip,
+        )
 
         # If a custom lookup was provided, update the parser
         if parser.dicom_file in ids:

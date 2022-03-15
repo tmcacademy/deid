@@ -118,7 +118,6 @@ class DicomCleaner:
             # Get expected and actual length of the pixel data (bytes, expected does not include trailing null byte)
             expected_length = get_expected_length(dicom)
             actual_length = len(pixel_data)
-            padded_expected_length = expected_length + expected_length % 2
             full_length = expected_length / 2 * 3  # upsampled data is a third larger
             full_length += (
                 1 if full_length % 2 else 0
@@ -243,7 +242,7 @@ class DicomCleaner:
                 # apply final 3D mask to 3D pixel data
                 self.cleaned = final_mask * self.original
 
-            # greyscale image: no need to stack into the channel dim since it doesnt exist
+            # greyscale image: no need to stack into the channel dim since it doesn't exist
             elif len(self.original.shape) == 2:
                 self.cleaned = mask * self.original
 
